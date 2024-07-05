@@ -17,21 +17,26 @@ func NewCategory(db *sql.DB) *Category {
 	return &Category{db: db}
 }
 
-func (c *Category) Create(name string, description string) (Category, error) {
+func (c *Category) Create(name string, description string) (*Category, error) {
 	id := uuid.New().String()
 
 	stmt, err := c.db.Prepare("INSERT INTO categories (id, name, description) VALUES (?,?,?);")
 	if err != nil {
-		return Category{}, err
+		return nil, err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id, name, description)
 	if err != nil {
-		return Category{}, err
+		return nil, err
 	}
 
-	return Category{ID: id, Name: name, Description: description}, nil
+	return &Category{
+		ID:          id,
+		Name:        name,
+		Description: description,
+	}, nil
+
 }
 
 func (c *Category) FindAll() ([]Category, error) {
@@ -50,4 +55,20 @@ func (c *Category) FindAll() ([]Category, error) {
 		categories = append(categories, Category{ID: id, Name: name, Description: description})
 	}
 	return categories, nil
+}
+
+func (c *Category) FindByCourseID(courseID string) (Category, error) {
+	var id, name, description string
+	stmt, err := c.db.Prepare("SELECT c.id, c.name, c.description FROM categories c JOIN courses co ON c.id = co.category_id WHERE co.id = ?;")
+	if err != nil {
+		return Category{}, err
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(courseID).Scan(&id, &name, &description)
+	if err != nil {
+		return Category{}, err
+	}
+
+	return Category{ID: id, Name: name, Description: description}, nil
 }
